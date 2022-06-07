@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ path }}</title>
+</head>
+<body>
+<h1>{{ path }}</h1>
+<p>{{ phy }}</p>
+<table>
+<tbody>
+<tr>
+    <td>icon</td>
+    <td>name</td>
+</tr>
+{%- for o in li -%}
+<tr>
+    <td>{%- if o.isdir -%}📂{%- else -%}📄{%- endif -%}</td>
+    <td><a href="{{ o.path }}">{{ o.displayname }}</a></td>
+</tr>{%- endfor -%}
+</tbody>
+</table>
+</body>
+</html>
