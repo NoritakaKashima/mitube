@@ -6,14 +6,14 @@ import flask
 from flask import Flask, request, render_template, abort
 
 app = Flask(__name__, template_folder=os.path.dirname(__file__)+'/Templates')
-root = '/volume1'
+root = '.'
 
 
 def stat(path, entry):
     name = entry.name.decode('utf-8', 'surrogateescape')
     p = os.path.join(path, name)
     o = {
-        'path': p + '/' if entry.is_dir() else '',
+        'path': p + ('/' if entry.is_dir() else ''),
         'name': name,
         'type': str(type(name)),
         'isdir': entry.is_dir(),
@@ -23,16 +23,16 @@ def stat(path, entry):
     return o
 
 
-def open(phy, _range):
+def openfile(phy, _range):
     BUFFER_READ = 4096
     fspath = phy
     size = os.path.getsize(fspath)
     start = 0
     length = 0
     if _range:
-        start = _range[0]
+        start = int(_range[0])
         if _range[1]:
-            length = _range[1] - start + 1
+            length = int(_range[1]) - start + 1
         else:
             length = size - start
     else:
@@ -58,7 +58,7 @@ def get_file(phy):
         print(f'Range request: {request.headers["Range"]}')
         r0, r1 = request.headers['Range'].split("-")
         _range = (int(r0), int(r1) if r1 else None)
-    stream = open(phy, _range)
+    stream = openfile(phy, _range)
     status = 206 if _range else 200
     return flask.Response(stream(), status, headers={}, direct_passthrough=True)
 
