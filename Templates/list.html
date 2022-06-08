@@ -10,16 +10,26 @@
 <table>
 <tbody>
 <tr>
-    <td>icon</td>
-    <td>name</td>
-    <td>size</td>
+    {% set m = 'v' if rev else '^' %}
+    <td>i</td>
+    {% for h in ['name', 'size', 'modified'] %}
+    <td><a href="?sort={{ h }}{% if sort==h and not rev %}&r=t{% endif %}">{% if sort==h %}{{ m }}{% endif %}{{ h }}</a></td>
+    {% endfor %}
+</tr>
+<tr>
+    <td>&#9873;</td>
+    <td><a href="..">..</a></td>
+    <td style="text-align: right;"><a href="..">0</a></td>
+    <td><a href=".."></a></td>
 </tr>
 {%- for o in li -%}
 <tr>
     <td>{%- if o.isdir -%}&#9873;{%- else -%}&#9872;{%- endif -%}</td>
-    <td><a href="{{ o.path }}">{{ o.displayname }}</a></td>
-    <td><a href="{{ o.path }}">{{ o.size }}</a></td>
-</tr>{%- endfor -%}
+    <td><a href="{{ o.path }}">{{ o.name }}</a></td>
+    <td style="text-align: right;"><a href="{{ o.path }}">{{ o.size }}</a></td>
+    <td><a href="{{ o.path }}">{{ o.modified.strftime('%Y-%m-%d %H:%M:%S') }}</a></td>
+</tr>
+{%- endfor -%}
 </tbody>
 </table>
 </body>

@@ -1,5 +1,6 @@
 import os
 import sys
+import datetime
 import traceback
 import flask
 from flask import Flask, request, render_template, abort
@@ -13,10 +14,11 @@ def stat(path, entry):
     p = os.path.join(path, name)
     o = {
         'path': p + '/' if entry.is_dir() else '',
-        'displayname': name,
+        'name': name,
         'type': str(type(name)),
         'isdir': entry.is_dir(),
         'size': entry.stat().st_size,
+        'modified': datetime.datetime.fromtimestamp(entry.stat().st_mtime),
     }
     return o
 
@@ -80,13 +82,16 @@ def get(path=""):
                 return '', 301, {'Location': path + '/'}
             with os.scandir(phy.encode()) as sd:
                 li = [stat(path, b) for b in sd]
-            li.insert(0, {'path': '..', 'displayname': '..', 'isdir': True})
-            dic = {}
-            for i, o in enumerate(li):
-                dic[i] = o
-#            return dic.__str__()
-            return render_template('list.html', path=path, phy=phy, li=li)
-#            return li[0]
+            key = 'name'
+            sort = request.args.get('sort')
+            if sort:
+                key = sort
+            rev = False
+            r = request.args.get('r')
+            if r:
+                rev = True
+            li.sort(key=lambda x: x[key], reverse=rev)
+            return render_template('list.html', path=path, phy=phy, li=li, sort=sort, rev=rev)
         else:
             return get_file(phy)
     else:
