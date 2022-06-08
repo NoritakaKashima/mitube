@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
     <title>{{ path }}</title>
@@ -12,11 +12,13 @@
 <tr>
     <td>icon</td>
     <td>name</td>
+    <td>size</td>
 </tr>
 {%- for o in li -%}
 <tr>
-    <td>{%- if o.isdir -%}📂{%- else -%}📄{%- endif -%}</td>
+    <td>{%- if o.isdir -%}&#9873;{%- else -%}&#9872;{%- endif -%}</td>
     <td><a href="{{ o.path }}">{{ o.displayname }}</a></td>
+    <td><a href="{{ o.path }}">{{ o.size }}</a></td>
 </tr>{%- endfor -%}
 </tbody>
 </table>

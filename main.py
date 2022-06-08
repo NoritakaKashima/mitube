@@ -1,23 +1,22 @@
 import os
+import sys
+import traceback
 import flask
 from flask import Flask, request, render_template, abort
 
-app = Flask(__name__)
-root = '.'
+app = Flask(__name__, template_folder=os.path.dirname(__file__)+'/Templates')
+root = '/volume1'
 
 
-@app.route("/")
-def hello():
-    return get("")
-    # return "<a href='Templates'>index!</a>"
-
-
-def stat(path, base):
-    p = os.path.join(path, base)
+def stat(path, entry):
+    name = entry.name.decode('utf-8', 'surrogateescape')
+    p = os.path.join(path, name)
     o = {
-        'path': p,
-        'displayname': base,
-        'isdir': os.path.isdir(p)
+        'path': p + '/' if entry.is_dir() else '',
+        'displayname': name,
+        'type': str(type(name)),
+        'isdir': entry.is_dir(),
+        'size': entry.stat().st_size,
     }
     return o
 
@@ -62,22 +61,48 @@ def get_file(phy):
     return flask.Response(stream(), status, headers={}, direct_passthrough=True)
 
 
+@app.route("/env")
+def env():
+    return {"defaultencoding": sys.getdefaultencoding(),
+        "filesystemencoding": sys.getfilesystemencoding(),
+        "getfilesystemencodeerrors": sys.getfilesystemencodeerrors(),
+        "__file__": __file__, "cwd": os.getcwd()}
+    
+    
+@app.route("/")
 @app.route("/<path:path>")
-def get(path):
+def get(path=""):
     path = '/' + path
     phy = root + path
     if os.path.exists(phy):
         if os.path.isdir(phy):
             if not path.endswith('/'):
                 return '', 301, {'Location': path + '/'}
-            li = [stat(path, b) for b in os.listdir(phy)]
+            with os.scandir(phy.encode()) as sd:
+                li = [stat(path, b) for b in sd]
             li.insert(0, {'path': '..', 'displayname': '..', 'isdir': True})
+            dic = {}
+            for i, o in enumerate(li):
+                dic[i] = o
+#            return dic.__str__()
             return render_template('list.html', path=path, phy=phy, li=li)
+#            return li[0]
         else:
             return get_file(phy)
     else:
         return abort(404)
 
 
+@app.errorhandler(Exception)
+def handle(e):
+#    return {
+#        "code": e.code,
+#        "name": e.name,
+#        "description": e.description,
+#        "stacktrace": traceback.format_exc(),
+#    }
+    return f"<pre>{traceback.format_exc()}</pre>"
+    
+    
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()
