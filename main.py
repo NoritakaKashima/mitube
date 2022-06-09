@@ -1,24 +1,58 @@
 import os
 import sys
+import math
 import datetime
 import traceback
+import re
 import flask
-from flask import Flask, request, render_template, abort
+from flask import Flask, request, render_template, abort, make_response
 
 app = Flask(__name__, template_folder=os.path.dirname(__file__)+'/Templates')
-root = '.'
+root = '/volume1'
 
+mimetypes = {
+    ".txt": "text/plain",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".mp4": "video/mp4",
+    ".pdf": "application/pdf",
+    }
+    
+    
+def getmimetypes(ext):
+    if ext in mimetypes:
+        return mimetypes[ext]
+    return 'plain/text'
+    
+
+@app.template_filter('convert_size')
+def convert_size(size):
+    units = ("bytes", "KB", "MB", "GB")
+    if size < 1024:
+        return f"{size}"
+    else:
+        i = math.floor(math.log(size, 1024)) if size > 0 else 0
+        size = round(size / 1024 ** i, 2)
+        return f"{size} {units[i]}"
+    
 
 def stat(path, entry):
     name = entry.name.decode('utf-8', 'surrogateescape')
     p = os.path.join(path, name)
+    isdir = entry.is_dir()
+    ext = 'dir'
+    if not isdir:
+        root, ext = os.path.splitext(p)
+        if ext == '.mp4':
+            p += '.html'
     o = {
         'path': p + ('/' if entry.is_dir() else ''),
         'name': name,
         'type': str(type(name)),
-        'isdir': entry.is_dir(),
+        'isdir': isdir,
         'size': entry.stat().st_size,
         'modified': datetime.datetime.fromtimestamp(entry.stat().st_mtime),
+        'ext': ext,
     }
     return o
 
@@ -49,18 +83,24 @@ def openfile(phy, _range):
                     break
                 read += length_to_read
                 yield d
-    return generate
+
+    status = 206 if _range else 200
+    return flask.Response(generate(), status, headers={'Content-Length': length, 'Accept-Ranges': 'bytes'}, direct_passthrough=True)
 
 
-def get_file(phy):
+def get_file(phy, ext):
     _range = None
     if 'Range' in request.headers:
-        print(f'Range request: {request.headers["Range"]}')
-        r0, r1 = request.headers['Range'].split("-")
-        _range = (int(r0), int(r1) if r1 else None)
-    stream = openfile(phy, _range)
-    status = 206 if _range else 200
-    return flask.Response(stream(), status, headers={}, direct_passthrough=True)
+        m = re.search('(\d+)-(\d*)', request.headers['Range'])
+        if m:
+            g = m.groups()
+            _range = (int(g[0]), int(g[1]) if g[1] else None)
+        _range = (0, None)
+
+    res = openfile(phy, _range)
+    mt = getmimetypes(ext)
+    res.headers.set('Content-Type', mt)
+    return res
 
 
 @app.route("/env")
@@ -71,41 +111,39 @@ def env():
         "__file__": __file__, "cwd": os.getcwd()}
     
     
+    
 @app.route("/")
 @app.route("/<path:path>")
 def get(path=""):
     path = '/' + path
-    phy = root + path
+    rt, ext = os.path.splitext(path)
+    phy = (root + path).encode()
     if os.path.exists(phy):
         if os.path.isdir(phy):
             if not path.endswith('/'):
                 return '', 301, {'Location': path + '/'}
-            with os.scandir(phy.encode()) as sd:
+            with os.scandir(phy) as sd:
                 li = [stat(path, b) for b in sd]
-            key = 'name'
-            sort = request.args.get('sort')
-            if sort:
-                key = sort
+            key = request.args.get('sort', 'name')
             rev = False
             r = request.args.get('r')
             if r:
                 rev = True
             li.sort(key=lambda x: x[key], reverse=rev)
-            return render_template('list.html', path=path, phy=phy, li=li, sort=sort, rev=rev)
+            res = make_response(render_template('list.html', path=path, phy=phy, li=li, sort=key, rev=rev))
+            res.headers.set('Accept-Ranges', 'bytes')
+            return res
         else:
-            return get_file(phy)
+            return get_file(phy, ext)
     else:
+        rt2, ext2 = os.path.splitext(rt)
+        if ext == '.html' and ext2 == '.mp4':
+            return make_response(render_template('movie.html', path=rt))
         return abort(404)
 
 
 @app.errorhandler(Exception)
 def handle(e):
-#    return {
-#        "code": e.code,
-#        "name": e.name,
-#        "description": e.description,
-#        "stacktrace": traceback.format_exc(),
-#    }
     return f"<pre>{traceback.format_exc()}</pre>"
     
     

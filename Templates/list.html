@@ -7,27 +7,37 @@
 <body>
 <h1>{{ path }}</h1>
 <p>{{ phy }}</p>
+<p>
+    {%- set ns = namespace(cp='') -%}
+    {%- for p in path.split('/') -%}
+    {%- if loop.index == 1 -%}{%- set ns.cp = '/' -%}{%- set p = '/' -%}
+    {%- else -%}{%- set ns.cp = ns.cp + p +'/' -%}{%- endif -%}
+    &nbsp;&gt;&nbsp;<a href="{{ns.cp}}">{{p}}</a>
+    {%- endfor -%}
+</p>
+<hr/>
 <table>
 <tbody>
+{%- set attrs = ['name', 'size', 'ext', 'modified']-%}
 <tr>
-    {% set m = 'v' if rev else '^' %}
     <td>i</td>
-    {% for h in ['name', 'size', 'modified'] %}
-    <td><a href="?sort={{ h }}{% if sort==h and not rev %}&r=t{% endif %}">{% if sort==h %}{{ m }}{% endif %}{{ h }}</a></td>
-    {% endfor %}
+    {%- for h in attrs -%}
+    <td><a href="?sort={{h}}{% if sort==h and not rev %}&r=t{% endif %}">{{h|capitalize}}{% if sort==h %}&nbsp;{% if rev %}&#8679;{% else %}&#8681;{% endif %}{% endif %}</a></td>
+    {%- endfor -%}
 </tr>
 <tr>
-    <td>&#9873;</td>
-    <td><a href="..">..</a></td>
+    <td>&#9166;</td>
+    <td><a href="..">..&nbsp;&#9166;</a></td>
     <td style="text-align: right;"><a href="..">0</a></td>
     <td><a href=".."></a></td>
 </tr>
 {%- for o in li -%}
 <tr>
-    <td>{%- if o.isdir -%}&#9873;{%- else -%}&#9872;{%- endif -%}</td>
-    <td><a href="{{ o.path }}">{{ o.name }}</a></td>
-    <td style="text-align: right;"><a href="{{ o.path }}">{{ o.size }}</a></td>
-    <td><a href="{{ o.path }}">{{ o.modified.strftime('%Y-%m-%d %H:%M:%S') }}</a></td>
+    <td>{%- if o.isdir -%}&#9921;{%- else -%}&#9832;{%- endif -%}</td>
+    <td><a href="{{o.path}}">{{o.name}}</a></td>
+    <td style="text-align: right;"><a href="{{o.path}}">{{o.size|convert_size}}</a></td>
+    <td><a href="{{o.path}}">{{o.ext}}</a></td>
+    <td><a href="{{o.path}}">{{o.modified.strftime('%Y-%m-%d %H:%M:%S')}}</a></td>
 </tr>
 {%- endfor -%}
 </tbody>
